@@ -1,358 +1,1076 @@
-import React, { useState, useEffect } from "react";
-import styled from "styled-components";
-import axios from "axios";
-import Select from "react-select";
-import { fetchDistributors, fetchAgencies, fetchProducts } from "../api";
-
-const Reports = () => {
-  const [distributors, setDistributors] = useState([]);
-  const [agencies, setAgencies] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [selectedDistributors, setSelectedDistributors] = useState([]);
-  const [selectedAgencies, setSelectedAgencies] = useState([]);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Fetch dropdown data from the backend
-  useEffect(() => {
-    const fetchDropdownData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("No token found in localStorage");
-          return;
-        }
-        const distributorsData = await fetchDistributors(token);
-        const agenciesData = await fetchAgencies(token);
-        const productsData = await fetchProducts(token);
-
-        // Add "Select All" option
-        setDistributors([{ id: "all", name: "Select All" }, ...distributorsData]);
-        setAgencies([{ id: "all", name: "Select All" }, ...agenciesData]);
-        setProducts([{ id: "all", name: "Select All" }, ...productsData]);
-      } catch (error) {
-        console.error("Error fetching dropdown data:", error);
-        setError("Failed to fetch dropdown data. Please try again.");
-      }
-    };
-    fetchDropdownData();
-  }, []);
-
-  const handleSelectAll = (selectedOptions, setSelected, allOptions) => {
-    if (selectedOptions && selectedOptions.some((option) => option.id === "all")) {
-      setSelected(allOptions.filter((option) => option.id !== "all"));
-    } else {
-      setSelected(selectedOptions || []);
-    }
+import React, { useState, useEffect } from "react"; 
+import styled from "styled-components"; 
+import axios from "axios"; 
+import Select, { components } 
+from "react-select"; import { 
+  fetchDistributors,   
+  fetchAgencies,   
+  fetchProducts,   
+  fetchSalesReps,   
+  fetchCustomers,   
+  fetchAreas 
+} from "../api"; 
+ 
+const Reports = () => {   
+  const [distributors, setDistributors] = useState([]);   
+  const [agencies, setAgencies] = useState([]);   
+  const [products, setProducts] = useState([]);   
+  const [salesReps, setSalesReps] = useState([]);   
+  const [customers, setCustomers] = useState([]);   
+  const [areas, setAreas] = useState([]);   
+  const [selectedDistributor, setSelectedDistributor] = useState([]);   
+  const [selectedAgencies, setSelectedAgencies] = useState([]);   
+  const [selectedProducts, setSelectedProducts] = useState([]);   
+  const [selectedSalesRep, setSelectedSalesRep] = useState(null);   
+  const [selectedCustomers, setSelectedCustomers] = useState([]);   
+  const [selectedAreas, setSelectedAreas] = useState([]);   
+  const [fromDate, setFromDate] = useState("");   
+  const [toDate, setToDate] = useState("");   
+  const [isLoading, setIsLoading] = useState(false);   
+  const [error, setError] = useState("");   
+  const [isFetching, setIsFetching] = useState(false); 
+ 
+  // Custom components for dropdowns   
+  const CheckboxOption = ({ innerProps, label, isSelected }) => ( 
+    <div {...innerProps} style={{ 
+      padding: '5px 12px', 
+      display: 'flex', 
+      alignItems: 'center' }}> 
+      <Checkbox type="checkbox" checked={isSelected} readOnly style={{ marginRight: '8px' }} /> 
+      {label} 
+   </div> 
+ ); 
+ const CountValueContainer = ({ children, ...props }) => {   
+  const selectedCount = props.getValue().length; return ( 
+   <div className="css-1hwfws3" style={{ paddingLeft: '5px' }}> 
+     {selectedCount > 0 ? `${selectedCount} ${props.selectProps.name || 'Items'} Selected` : props.selectProps.placeholder} 
+        {React.Children.map(children, child =>            
+        child && [0, 1].indexOf(child.type) === -1 ? child : null 
+        )} 
+      </div> 
+    ); 
+  }; 
+ 
+  const MenuWithSelectAll = ({ children, ...props }) => {     
+    const options = props.options;     
+    const allSelected = props.getValue().length === options.length ; 
+     
+    return ( 
+      <components.MenuList {...props}> 
+        <div           
+        style={{              
+          padding: '8px 12px',              
+          display: 'flex',              
+          alignItems: 'center',              
+          fontWeight: 'bold',             
+          cursor: 'pointer',             
+          backgroundColor: props.isFocused ? '#f5f5f5' : 'white' 
+          }} 
+          onClick={() => {             
+            if (allSelected) {               
+              props.setValue([]); 
+            } else { 
+              props.setValue(options); 
+            } 
+          }} 
+        > 
+         <Checkbox type="checkbox" checked={allSelected} readOnly style={{ marginRight: '8px' }}/>
+          {allSelected ? 'Deselect All' : 'Select All'}
+        </div>
+        {children}
+      </components.MenuList>
+); 
   };
+ 
+  const dropdownComponents = {     
+    Option: CheckboxOption, 
+    ValueContainer: CountValueContainer, 
+    MenuList: MenuWithSelectAll, 
+    IndicatorSeparator: () => null 
+  }; 
+ 
+  const dropdownStyles = {     
+    control: (provided) => ({       
+      ...provided,       
+      minHeight: '48px',       
+      border: '1px solid #ddd',       
+      '&:hover': {         
+        borderColor: '#C62828', 
+      }, 
+    }), 
+    menu: provided => ({       
+      ...provided,       
+      zIndex: 9999, 
+    }), 
+    option: (provided, state) => ({ 
+      ...provided,       
+      backgroundColor: state.isSelected ? '#C62828' : state.isFocused ? '#FFEBEE' : 'white',       
+      color: state.isSelected ? 'white' : '#333', 
+      ':active': { 
+        backgroundColor: state.isSelected ? '#C62828' : '#FFEBEE', 
+      }, 
+    }), 
+    multiValue: (provided) => ({ 
+      ...provided,     
+      display: 'none', 
+  }), 
+}; 
+useEffect(() => { 
+  const fetchDropdownData = async () => {    
+  
+  try {      
+  setIsFetching(true);         
+  const token = localStorage.getItem("token"); 
+  if (!token) {           
+    console.error("No token found in localStorage");           
+    setIsFetching(false);           
+    return; 
+  } 
+ 
+ 
+// Fetch all data in parallel
+        const [
+          distributorsData, 
+          agenciesData, 
+          productsData, 
+          salesRepsData, 
+          customersData, 
+          areasData
+        ] = await Promise.all([
+          fetchDistributors(token),
+          fetchAgencies(token),
+          fetchProducts(token),
+          fetchSalesReps(token),
+          fetchCustomers(token),
+          fetchAreas(token)
+        ]);
 
-  const handleDownloadReport = async () => {
-    try {
-      setIsLoading(true);
-      setError("");
-
-      // Validate date inputs
-      if (fromDate && toDate && new Date(fromDate) > new Date(toDate)) {
-        setError("From date cannot be later than To date");
-        setIsLoading(false);
-        return;
-      }
-
-      // Prepare the payload
-      const payload = {
-        distributor: selectedDistributors.map((d) => d.name).join(",") || "",
-        agency: selectedAgencies.map((a) => a.name).join(",") || "",
-        product: selectedProducts.map((p) => p.name).join(",") || "",
-        fromDate,
-        toDate,
-      };
-
-      // Make the API request
-      const response = await axios.post(
-        "http://localhost:5000/api/files/generate-report",
-        payload,
-        {
-          responseType: "blob",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-
-      if (response.data.size === 0) {
-        setError("No data found for the selected filters.");
-        setIsLoading(false);
-        return;
-      }
-
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "Distributor_Agency_Product_Report.pdf");
-      document.body.appendChild(link);
-      link.click();
-
-      // Clean up
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(link);
-      setIsLoading(false);
-    } catch (error) {
-      setIsLoading(false);
-      console.error("Error downloading report:", error);
-      if (error.response) {
-        if (error.response.status === 404) {
-          setError("No data found for the given filters.");
-        } else if (error.response.status === 500) {
-          setError("An error occurred while generating the report. Please try again.");
-        } else {
-          setError(`Error: ${error.response.data.message || "Unknown error occurred."}`);
-        }
-      } else {
-        setError("Unable to connect to the server. Please check your network connection.");
-      }
-    }
-  };
-
-  return (
-    <Container>
-      <Title>Reports Page</Title>
-      <Form>
-        <DropdownContainer>
-          <Label>Distributors</Label>
-          <Select
-            options={distributors}
-            getOptionLabel={(e) => e.name}
-            getOptionValue={(e) => e.id}
-            value={selectedDistributors}
-            onChange={(selectedOptions) =>
-              handleSelectAll(selectedOptions, setSelectedDistributors, distributors)
-            }
-            placeholder="Select Distributor(s)"
-            isMulti
-            isSearchable
-            styles={customStyles}
-          />
-        </DropdownContainer>
-
-        <DropdownContainer>
-          <Label>Agency</Label>
-          <Select
-            options={agencies}
-            getOptionLabel={(e) => e.name}
-            getOptionValue={(e) => e.id}
-            value={selectedAgencies}
-            onChange={(selectedOptions) =>
-              handleSelectAll(selectedOptions, setSelectedAgencies, agencies)
-            }
-            placeholder="Select Agency(s)"
-            isMulti
-            isSearchable
-            styles={customStyles}
-          />
-        </DropdownContainer>
-
-        <DropdownContainer>
-          <Label>Product</Label>
-          <Select
-            options={products}
-            getOptionLabel={(e) => e.name}
-            getOptionValue={(e) => e.id}
-            value={selectedProducts}
-            onChange={(selectedOptions) =>
-              handleSelectAll(selectedOptions, setSelectedProducts, products)
-            }
-            placeholder="Select Product(s)"
-            isMulti
-            isSearchable
-            styles={customStyles}
-          />
-        </DropdownContainer>
-
-        <DateContainer>
-          <Label>From Date</Label>
-          <StyledInput
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            required
-          />
-        </DateContainer>
-
-        <DateContainer>
-          <Label>To Date</Label>
-          <StyledInput
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            required
-          />
-        </DateContainer>
-
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-
-        <Button
-          onClick={handleDownloadReport}
-          disabled={isLoading || !fromDate || !toDate}
-        >
-          {isLoading ? "Generating..." : "Generate Report"}
-        </Button>
-
-        {selectedProducts.length > 0 && (
-          <SelectedProductsContainer>
-            <Label>Selected Products:</Label>
-            <ProductList>
-              {selectedProducts.map((product) => (
-                <ProductItem key={product.id}>{product.name}</ProductItem>
-              ))}
-            </ProductList>
-          </SelectedProductsContainer>
-        )}
-      </Form>
-    </Container>
-  );
-};
-
-export default Reports;
-
-// Custom styles for the dropdown
-const customStyles = {
-  control: (base) => ({
-    ...base,
-    minHeight: "50px",
-    fontSize: "1rem",
-  }),
-  menu: (base) => ({
-    ...base,
-    zIndex: 9999,
-  }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isFocused ? "#f0f0f0" : "#fff",
-    color: "#333",
-    fontSize: "1rem",
-  }),
-  multiValue: (base) => ({
-    ...base,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  }),
-  multiValueLabel: (base) => ({
-    ...base,
-    color: "#333",
-  }),
-};
-
-// Styled components
-const Container = styled.div`
-  text-align: center;
-  margin: 50px auto;
-  padding: 30px;
-  max-width: 800px;
-  background: linear-gradient(135deg, #7b241c, #cd6155);
-  border-radius: 15px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  color: white;
+        setDistributors(distributorsData);
+        setAgencies(agenciesData);
+        setProducts(productsData);
+        setSalesReps(salesRepsData);
+        setCustomers(customersData);
+        setAreas(areasData);
+      }catch (error) {         
+          console.error("Error fetching dropdown data:", error);         
+          setError("Failed to fetch dropdown data. Please try again.");   
+        } finally {         
+          setIsFetching(false); 
+        } 
+      }; 
+      fetchDropdownData(); 
+    }, 
+    []); 
+const handleDownloadReport = async () => { 
+try { 
+   setIsLoading(true);    
+   setError(""); 
+ 
+   // Debug: Log current selection state    
+   console.log("Selected Distributors:", {      
+    count: selectedDistributor.length,         
+    names: selectedDistributor.map(d => d.name) 
+      }); 
+ 
+      const validateDistributors = (distributors) => {         
+        if (!Array.isArray(distributors)) {           
+          return { valid: false, message: "Distributor selection must be an array" }; 
+        } 
+         
+        if (distributors.length === 0) {           
+          return { valid: false, message: "Please select at least one distributor" }; 
+        } 
+       
+        // Flexible validation         
+        const invalid = distributors.filter(d => {           
+          return !d ||  
+                 (typeof d !== 'object') ||  
+                 (!d.id && !d.value) ||  
+                 (!d.name && !d.label); 
+        }); 
+       
+        if (invalid.length > 0) {           
+          return {              
+            valid: false,  
+            message: `Found ${invalid.length} invalid distributor selections` 
+          }; 
+        } 
+ 
+  return { valid: true }; 
+}; 
+// Enhanced validation 
+if (!Array.isArray(selectedDistributor) ){      
+  throw new Error("Invalid distributor selection format"); 
+   } 
+ 
+     if (selectedDistributor.length === 0) {         
+      throw new Error("Please select at least one distributor"); 
+      } 
+ 
+      // Verify we have valid distributor objects
+             const invalidDistributors = selectedDistributor.filter(d => !d || !d.id || !d.name);       
+             if (invalidDistributors.length > 0) {         
+              throw new Error("Some selected distributors are invalid"); 
+      } 
+ 
+      // Validate dates       
+      if (!fromDate || !toDate) {         
+        throw new Error("Both date fields are required"); 
+      } 
+ 
+      if (new Date(fromDate) > new Date(toDate)) {         
+        throw new Error("From date cannot be later than To date"); 
+      } 
+ 
+      // Prepare payload       
+      const payload = {         
+        distributor: selectedDistributor.map(d => d.name).join(","),         
+        salesRep: selectedSalesRep?.name || null,         
+        agency: selectedAgencies.length > 0 ? selectedAgencies.map(a => a.name).join(",") : null,         
+        product: selectedProducts.length > 0 ? selectedProducts.map(p => p.name).join(",") : null,         
+        customer: selectedCustomers.length > 0 ? selectedCustomers.map(c => c.name).join(",") : null,         
+        area: selectedAreas.length > 0 ? selectedAreas.map(a => a.name).join(",") : null,         
+        fromDate: new Date(fromDate).toISOString().split('T')[0],         
+        toDate: new Date(toDate).toISOString().split('T')[0] 
+}; 
+console.log("Request Payload:", payload); 
+// Make the request 
+const token = localStorage.getItem("token");    
+const response = await axios.post(      
+  "http://localhost:5000/api/files/generate-report",      
+  payload,      
+  {        
+    responseType: "blob",        
+    headers: { 
+            Authorization: `Bearer ${token}`, 
+            'Content-Type': 'application/json' 
+          }, 
+          validateStatus: (status) => status < 500 // Resolve for 400 status too 
+        } 
+      ); 
+ 
+      // Handle 400 errors specifically       
+      if (response.status === 400) {         
+        const errorData = JSON.parse(await response.data.text());         
+        throw new Error(errorData.message || "Invalid request parameters"); 
+      } 
+ 
+      // Handle successful response       
+      const blob = new Blob([response.data], { type: 'application/pdf' });       
+      const downloadUrl = window.URL.createObjectURL(blob);       
+      const link = document.createElement("a");       
+      link.href = downloadUrl;       
+      link.setAttribute("download", `Report_${new Date().toISOString()}.pdf`);       
+      document.body.appendChild(link); 
+      link.click();       
+      link.remove(); 
+ 
+    } catch (error) {       
+      setIsLoading(false);       
+      console.error("Report Generation Error:", {   
+        message: error.message,   
+        response: error.response,   
+        stack: error.stack 
+}); 
+ 
+// User-friendly error messages 
+   setError(error.message || "Report generation failed"); 
+   } finally {      
+    setIsLoading(false); 
+   } 
+  }; 
+ 
+  return ( 
+    <ReportsContainer> 
+      <ReportsCard> 
+        <ReportsHeader> 
+          <ReportsTitle>Generate Report</ReportsTitle> 
+          <ReportsSubtitle>Customize your report with filters</ReportsSubtitle> 
+        </ReportsHeader> 
+         
+        {isFetching ? ( 
+          <LoadingOverlay> 
+            <Spinner /> Loading filter options... 
+          </LoadingOverlay> 
+        ) : ( 
+          <ReportsContent> 
+            <FilterGroup> 
+              <FilterLabel>Distributor (Required)</FilterLabel> 
+              <StyledSelect                 
+              name="Distributors"                 
+              options={distributors.map(d => ({                    
+                value: d.id , // Fallback for missing IDs                    
+                label: d.name,                   
+                original: d  
+                }))} 
+                value={selectedDistributor}                 
+                onChange={(selectedOptions) => { 
+                  // Map back to original objects             
+                  const selected = selectedOptions  
+        ? selectedOptions.map(option => ({ 
+          ...option.original,           
+          id: option.value,         
+          name: option.label 
+      })) 
+          : [];          
+          console.log("Selected Distributors:", selected); 
+                    setSelectedDistributor(selected); 
+        }}          
+        placeholder="Select Distributor(s)" 
+                isMulti                 
+                isSearchable                 
+                closeMenuOnSelect={false}                 
+                hideSelectedOptions={false}                 
+                components={dropdownComponents}                 
+                styles={dropdownStyles}                 
+                getOptionValue={(option) => option.value} // Explicitly define value getter 
+              /> 
+            </FilterGroup> 
+ 
+            <FilterGroup> 
+              <FilterLabel>Sales Representative</FilterLabel> 
+              <StyledSelect                 
+              name="Sales Rep"                 
+              options={salesReps.map(s => ({ value: s.id, label: s.name }))}                 
+              value={selectedSalesRep ? { value: selectedSalesRep.id, label: selectedSalesRep.name } : null}                 onChange={(selected) => setSelectedSalesRep(selected ? salesReps.find(s => s.id === selected.value) : null)}                 placeholder="Select Sales Rep"                 isSearchable                 isClearable 
+                components={dropdownComponents}                 
+                styles={dropdownStyles} 
+              /> 
+            </FilterGroup> 
+ 
+            <FilterGroup> 
+        <FilterLabel>Agency</FilterLabel> 
+  <StyledSelect   
+  name="Agencies"   
+  options={[ 
+  { value: "select-all", label: "Select All", isDisabled: true }, 
+  ...agencies.map(a => ({ value: a.id, label: a.name })) 
+       ]}        
+       value={selectedAgencies}        
+       onChange={(selected) => setSelectedAgencies(selected ? selected.filter(o => o.value !== "select-all") : [])}         placeholder="Select Agency(s)"          isSearchable          isMulti 
+                closeMenuOnSelect={false}                 
+                hideSelectedOptions={false}                 
+                components={dropdownComponents}                 
+                styles={dropdownStyles} 
+              /> 
+            </FilterGroup> 
+ 
+            <FilterGroup> 
+              <FilterLabel>Products</FilterLabel> 
+              <StyledSelect                 
+              name="Products"                 
+              options={[ 
+                  { value: "select-all", label: "Select All", isDisabled: true }, 
+                  ...products.map(p => ({ value: p.id, label: p.name })) 
+                ]} 
+                value={selectedProducts}                 
+                onChange={(selected) => setSelectedProducts(selected ? selected.filter(o => o.value !== "select-all") : [])}                 placeholder="Select Product(s)"                 isSearchable                 isMulti 
+                closeMenuOnSelect={false}                
+                hideSelectedOptions={false}                 
+                components={dropdownComponents}                 
+                styles={dropdownStyles} 
+              /> 
+            </FilterGroup> 
+<FilterGroup> 
+<FilterLabel>Customer</FilterLabel> 
+<StyledSelect name="Customers" options={[ 
+        { value: "select-all", 
+          label: "Select All", 
+          isDisabled: true }, 
+         ...customers.map(c => ({ value: c.id, label: c.name })) 
+       ]}         value={selectedCustomers}         
+       onChange={(selected) => setSelectedCustomers(selected ? selected.filter(o => o.value !== "select-all") : [])}          placeholder="Select Customer(s)" 
+                isSearchable                 
+                isMulti 
+                closeMenuOnSelect={false}                 
+                hideSelectedOptions={false}                 
+                components={dropdownComponents}                 
+                styles={dropdownStyles} 
+              /> 
+            </FilterGroup> 
+ 
+            <FilterGroup> 
+              <FilterLabel>Area</FilterLabel> 
+              <StyledSelect                 
+              name="Areas"                 
+              options={[ 
+                  { value: "select-all", label: "Select All", isDisabled: true }, 
+                  ...areas.map(a => ({ value: a.id, label: a.name })) 
+                ]} 
+                value={selectedAreas}                 
+                onChange={(selected) => setSelectedAreas(selected ? selected.filter(o => o.value !== "select-all") : [])}                 placeholder="Select Area(s)"                 isSearchable                 isMulti 
+                closeMenuOnSelect={false}                 
+                hideSelectedOptions={false}                 
+                components={dropdownComponents}                 
+                styles={dropdownStyles} 
+            /> 
+</FilterGroup> 
+<DateRangeGroup> 
+<DateInputGroup> 
+<FilterLabel>From Date (Required)</FilterLabel> 
+       <StyledDateInput          
+       type="date"           
+       value={fromDate}           
+       onChange={(e) => setFromDate(e.target.value)}            
+       required         
+       /> 
+              </DateInputGroup> 
+              <DateInputGroup> 
+                <FilterLabel>To Date (Required)</FilterLabel> 
+                <StyledDateInput                   
+                type="date"                   
+                value={toDate}                   
+                onChange={(e) => setToDate(e.target.value)} 
+                  required 
+                /> 
+              </DateInputGroup> 
+            </DateRangeGroup> 
+ 
+            {error && <ErrorMessage>{error}</ErrorMessage>} 
+ 
+            <GenerateButton               
+            onClick={handleDownloadReport}               
+            disabled={isLoading || selectedDistributor.length === 0 || !fromDate || !toDate} 
+            > 
+              {isLoading ? ( 
+                <> 
+                  <Spinner /> 
+                  Generating Report... 
+                </> 
+              ) : ( 
+                "Download Report" 
+              )} 
+           </GenerateButton> 
+        </ReportsContent> 
+       )} 
+    </ReportsCard> 
+  </ReportsContainer> 
+);
+}; 
+ 
+// Styled components 
+const Checkbox = styled.input`   
+margin-right: 8px; 
+`; 
+ 
+const LoadingOverlay = styled.div`   
+display: flex;   flex-direction: column;   
+align-items: center;   justify-content: center;   
+padding: 2rem;   color: #555;   gap: 1rem; 
+`; 
+ 
+const ReportsContainer = styled.div`   
+min-height: 100vh;   padding: 2rem;   
+background-color: #F5F5F5; 
+`; 
+ 
+const ReportsCard = styled.div`   
+max-width: 800px;   margin: 0 auto;   
+background: white;   border-radius: 12px;   
+box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);   
+overflow: hidden; 
+`; 
+ 
+const ReportsHeader = styled.div`   
+padding: 1.5rem 2rem;   background: 
+linear-gradient(135deg, #C62828, #EF5350);   
+color: white; 
 `;
+const ReportsTitle = 
+styled.h2`   
+font-size: 1.5rem;   
+font-weight: 600;   
+margin-bottom: 0.25rem; 
+`; 
+ 
+const ReportsSubtitle = styled.p`   
+font-size: 0.9rem;   
+opacity: 0.9; 
+`; 
+ 
+const ReportsContent = styled.div`   
+padding: 2rem; 
+`; 
+ 
+const FilterGroup = styled.div`  
+ margin-bottom: 1.5rem; 
+`; 
+ 
+const FilterLabel = styled.label`   
+display: block;   font-size: 0.9rem;   
+font-weight: 500;   color: #555;   
+margin-bottom: 0.5rem; 
+`; 
+ 
+const StyledSelect = styled(Select)`   
+.react-select__control {    
+ min-height: 48px;     
+ border: 1px solid #ddd;     
+ &:hover {       
+ border-color: #C62828; 
+    } 
+  } 
+  .react-select__control--is-focused {    
+   border-color: #C62828;    
+   box-shadow: 0 0 0 1px #C62828; 
+  } 
+`; 
+ 
+const DateRangeGroup = styled.div` 
+  display: grid;   
+  grid-template-columns: 1fr 1fr;   
+  gap: 1rem;   
+  margin-bottom: 1.5rem; 
+`; 
+ 
+const DateInputGroup = styled.div` 
+  display: flex;   
+  flex-direction: column; 
+`; 
+ 
+const StyledDateInput = styled.input`   
+width: 100%;   
+padding: 0.75rem 1rem;   
+font-size: 1rem;   
+border: 1px solid #ddd;   
+border-radius: 6px;   
+transition: all 0.3s ease;   
+&:focus {     
+border-color: #C62828;    
+ outline: none;     
+ box-shadow: 0 0 0 1px #C62828; 
+  } 
+`; 
+ 
+const GenerateButton = styled.button`   
+width: 100%;   
+padding: 0.75rem;   
+font-size: 1rem;   
+font-weight: 500;   
+color: white;   
+background-color: #C62828;   border: none;  
+border-radius: 6px; 
+  cursor: pointer;   
+  transition: all 0.3s ease;   
+  display: flex;   
+  align-items: center;   
+  justify-content: center;   
+  gap: 0.5rem;   &:hover {     
+  background-color: #EF5350; 
+  } 
+  &:disabled {     
+  background-color: #B0BEC5;     
+  cursor: not-allowed; 
+  } 
+`; 
+ 
+const Spinner = styled.div`   
+width: 16px;   height: 16px;   
+border: 2px solid rgba(255, 255, 255, 0.3);   
+border-radius: 50%;   border-top-color: white;   
+animation: spin 1s ease-in-out infinite;  
+ @keyframes spin {     
+ to { transform: rotate(360deg); } 
+  } 
+`; 
+ 
+const ErrorMessage = styled.div`   
+color: #D32F2F;   
+background-color: #FFEBEE;   
+padding: 0.75rem 1rem;   
+border-radius: 6px;   
+font-size: 0.9rem;   
+margin-bottom: 1.5rem;   
+text-align: center; 
+`; 
+ 
+export default Reports; 
+ 
 
-const Title = styled.h2`
-  font-size: 2.5rem;
-  margin-bottom: 20px;
-  color: #fff;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-`;
 
-const Form = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
 
-const DropdownContainer = styled.div`
-  margin-bottom: 20px;
-  width: 100%;
-  max-width: 400px;
-`;
+// import React, { useState, useEffect } from "react";
+// import styled from "styled-components";
+// import axios from "axios";
+// import Select from "react-select";
 
-const Label = styled.label`
-  font-size: 1.2rem;
-  font-weight: bold;
-  display: block;
-  margin-bottom: 10px;
-`;
+// import { 
+//   fetchDistributors, 
+//   fetchAgencies, 
+//   fetchProducts, 
+//   fetchSalesReps,
+//   fetchCustomers,
+//   fetchAreas 
+// } from "../api";
 
-const StyledInput = styled.input`
-  width: 100%;
-  padding: 10px;
-  font-size: 1rem;
-  border: none;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  outline: none;
-`;
+// const Reports = () => {
+//   const [distributors, setDistributors] = useState([]);
+//   const [agencies, setAgencies] = useState([]);
+//   const [products, setProducts] = useState([]);
+//   const [salesReps, setSalesReps] = useState([]);
+//   const [customers, setCustomers] = useState([]);
+//   const [areas, setAreas] = useState([]);
+  
+//   const [selectedDistributor, setSelectedDistributor] = useState(null);
+//   const [selectedAgencies, setSelectedAgencies] = useState([]);
+//   const [selectedProducts, setSelectedProducts] = useState([]);
+//   const [selectedSalesRep, setSelectedSalesRep] = useState(null);
+//   const [selectedCustomers, setSelectedCustomers] = useState([]);
+//   const [selectedAreas, setSelectedAreas] = useState([]);
+  
+//   const [fromDate, setFromDate] = useState("");
+//   const [toDate, setToDate] = useState("");
+//   const [isLoading, setIsLoading] = useState(false);
+//   const [error, setError] = useState("");
 
-const DateContainer = styled.div`
-  margin-bottom: 20px;
-  width: 100%;
-  max-width: 400px;
-`;
+//   useEffect(() => {
+//     const fetchDropdownData = async () => {
+//       try {
+//         const token = localStorage.getItem("token");
+//         if (!token) {
+//           console.error("No token found in localStorage");
+//           return;
+//         }
 
-const Button = styled.button`
-  padding: 10px 20px;
-  font-size: 1rem;
-  font-weight: bold;
-  color: white;
-  background-color: #7b241c;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+//         const [
+//           distributorsData, 
+//           agenciesData, 
+//           productsData, 
+//           salesRepsData,
+//           customersData,
+//           areasData
+//         ] = await Promise.all([
+//           fetchDistributors(token),
+//           fetchAgencies(token),
+//           fetchProducts(token),
+//           fetchSalesReps(token),
+//           fetchCustomers(token),
+//           fetchAreas(token)
+//         ]);
 
-  &:hover {
-    background-color: #c0392b;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-  }
+//         setDistributors(distributorsData);
+//         setAgencies(agenciesData);
+//         setProducts(productsData);
+//         setSalesReps(salesRepsData);
+//         setCustomers(customersData);
+//         setAreas(areasData.map(area => ({ id: area.name, name: area.name })));
+//       } catch (error) {
+//         console.error("Error fetching dropdown data:", error);
+//         setError("Failed to fetch dropdown data. Please try again.");
+//       }
+//     };
 
-  &:disabled {
-    background-color: #a9a9a9;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-`;
+//     fetchDropdownData();
+//   }, []);
 
-const ErrorMessage = styled.div`
-  color: #ffcccc;
-  margin-bottom: 15px;
-  font-weight: bold;
-  text-align: center;
-  width: 100%;
-  max-width: 400px;
-`;
+//   const handleSelectAll = (selectedOptions, setSelected, allOptions) => {
+//     if (selectedOptions && selectedOptions.some(option => option.id === "all")) {
+//       setSelected(allOptions.filter(option => option.id !== "all"));
+//     } else {
+//       setSelected(selectedOptions || []);
+//     }
+//   };
 
-const SelectedProductsContainer = styled.div`
-  margin-top: 20px;
-  width: 100%;
-  max-width: 400px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  padding: 15px;
-  background-color: rgba(0, 0, 0, 0.1);
-`;
+//   const handleDownloadReport = async () => {
+//     try {
+//       setIsLoading(true);
+//       setError("");
 
-const ProductList = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-`;
+//       if (fromDate && toDate && new Date(fromDate) > new Date(toDate)) {
+//         setError("From date cannot be later than To date");
+//         setIsLoading(false);
+//         return;
+//       }
 
-const ProductItem = styled.div`
-  background-color: rgba(255, 255, 255, 0.2);
-  padding: 5px 10px;
-  border-radius: 15px;
-  font-size: 0.9rem;
-`;
+//       const payload = {
+//         distributor: selectedDistributor ? selectedDistributor.name : "",
+//         salesRep: selectedSalesRep ? selectedSalesRep.name : "",
+//         agency: selectedAgencies.map(a => a.name).join(";"),
+//         product: selectedProducts.map(p => p.name).join(","),
+//         customer: selectedCustomers.map(c => c.name).join(","),
+//         area: selectedAreas.map(a => a.name).join(","),
+//         fromDate,
+//         toDate,
+//       };
+
+//       const response = await axios.post(
+//         "http://localhost:5000/api/files/generate-report",
+//         payload,
+//         {
+//           responseType: "blob",
+//           headers: {
+//             Authorization: `Bearer ${localStorage.getItem("token")}`,
+//           },
+//         }
+//       );
+
+//       if (response.data.size === 0) {
+//         setError("No data found for the selected filters.");
+//         setIsLoading(false);
+//         return;
+//       }
+
+//       const url = window.URL.createObjectURL(new Blob([response.data]));
+//       const link = document.createElement("a");
+//       link.href = url;
+//       link.setAttribute("download", "Distributor_Agency_Product_Report.pdf");
+//       document.body.appendChild(link);
+//       link.click();
+//       window.URL.revokeObjectURL(url);
+//       document.body.removeChild(link);
+//       setIsLoading(false);
+//     } catch (error) {
+//       setIsLoading(false);
+//       console.error("Error downloading report.", error);
+//       if (error.response) {
+//         if (error.response.status === 404) {
+//           setError("No data found for the given filters.");
+//         } else if (error.response.status === 500) {
+//           setError("An error occurred while generating the report. Please try again.");
+//         } else {
+//           setError(`Error: ${error.response.data.message || "Unknown error occurred."}`);
+//         }
+//       } else {
+//         setError("Unable to connect to the server. Please check your network connection.");
+//       }
+//     }
+//   };
+
+//   return (
+//     <ReportsContainer>
+//       <ReportsCard>
+//         <ReportsHeader>
+//           <ReportsTitle>Generate Report</ReportsTitle>
+//           <ReportsSubtitle>Customize your report with filters</ReportsSubtitle>
+//         </ReportsHeader>
+        
+//         <ReportsContent>
+//           <FilterRow>
+//             <FilterGroup>
+//               <FilterLabel>Distributor</FilterLabel>
+//               <StyledSelect
+//                 options={distributors}
+//                 getOptionLabel={(e) => e.name}
+//                 getOptionValue={(e) => e.id}
+//                 value={selectedDistributor}
+//                 onChange={(selectedOption) => setSelectedDistributor(selectedOption)}
+//                 placeholder="Select Distributor"
+//                 isSearchable
+//                 styles={selectStyles}
+//               />
+//             </FilterGroup>
+            
+//             <FilterGroup>
+//               <FilterLabel>Sales Representative</FilterLabel>
+//               <StyledSelect
+//                 options={salesReps}
+//                 getOptionLabel={(e) => e.name}
+//                 getOptionValue={(e) => e.id}
+//                 value={selectedSalesRep}
+//                 onChange={(selectedOption) => setSelectedSalesRep(selectedOption)}
+//                 placeholder="Select Sales Rep"
+//                 isSearchable
+//                 styles={selectStyles}
+//                 isClearable
+//               />
+//             </FilterGroup>
+//           </FilterRow>
+          
+//           <FilterRow>
+//             <FilterGroup>
+//               <FilterLabel>Agency</FilterLabel>
+//               <StyledSelect
+//                 options={agencies}
+//                 getOptionLabel={(e) => e.name}
+//                 getOptionValue={(e) => e.id}
+//                 value={selectedAgencies}
+//                 onChange={(selectedOptions) =>
+//                   handleSelectAll(selectedOptions, setSelectedAgencies, agencies)
+//                 }
+//                 placeholder="Select Agency(s)"
+//                 isMulti
+//                 isSearchable
+//                 styles={selectStyles}
+//               />
+//             </FilterGroup>
+            
+//             <FilterGroup>
+//               <FilterLabel>Product</FilterLabel>
+//               <StyledSelect
+//                 options={products}
+//                 getOptionLabel={(e) => e.name}
+//                 getOptionValue={(e) => e.id}
+//                 value={selectedProducts}
+//                 onChange={(selectedOptions) =>
+//                   handleSelectAll(selectedOptions, setSelectedProducts, products)
+//                 }
+//                 placeholder="Select Product(s)"
+//                 isMulti
+//                 isSearchable
+//                 styles={selectStyles}
+//               />
+//             </FilterGroup>
+//           </FilterRow>
+          
+//           <FilterRow>
+//             <FilterGroup>
+//               <FilterLabel>Customer</FilterLabel>
+//               <StyledSelect
+//                 options={customers}
+//                 getOptionLabel={(e) => e.name}
+//                 getOptionValue={(e) => e.id}
+//                 value={selectedCustomers}
+//                 onChange={(selectedOptions) =>
+//                   handleSelectAll(selectedOptions, setSelectedCustomers, customers)
+//                 }
+//                 placeholder="Select Customer(s)"
+//                 isMulti
+//                 isSearchable
+//                 styles={selectStyles}
+//               />
+//             </FilterGroup>
+            
+//             <FilterGroup>
+//               <FilterLabel>Area</FilterLabel>
+//               <StyledSelect
+//                 options={areas}
+//                 getOptionLabel={(e) => e.name}
+//                 getOptionValue={(e) => e.id}
+//                 value={selectedAreas}
+//                 onChange={(selectedOptions) =>
+//                   handleSelectAll(selectedOptions, setSelectedAreas, areas)
+//                 }
+//                 placeholder="Select Area(s)"
+//                 isMulti
+//                 isSearchable
+//                 styles={selectStyles}
+//               />
+//             </FilterGroup>
+//           </FilterRow>
+          
+//           <DateRangeGroup>
+//             <DateInputGroup>
+//               <FilterLabel>From Date</FilterLabel>
+//               <StyledDateInput
+//                 type="date"
+//                 value={fromDate}
+//                 onChange={(e) => setFromDate(e.target.value)}
+//                 required
+//               />
+//             </DateInputGroup>
+            
+//             <DateInputGroup>
+//               <FilterLabel>To Date</FilterLabel>
+//               <StyledDateInput
+//                 type="date"
+//                 value={toDate}
+//                 onChange={(e) => setToDate(e.target.value)}
+//                 required
+//               />
+//             </DateInputGroup>
+//           </DateRangeGroup>
+          
+//           {error && <ErrorMessage>{error}</ErrorMessage>}
+          
+//           <GenerateButton
+//             onClick={handleDownloadReport}
+//             disabled={isLoading || !fromDate || !toDate}
+//           >
+//             {isLoading ? (
+//               <>
+//                 <Spinner />
+//                 Generating Report...
+//               </>
+//             ) : (
+//               "Download Report"
+//             )}
+//           </GenerateButton>
+//         </ReportsContent>
+//       </ReportsCard>
+//     </ReportsContainer>
+//   );
+// };
+
+
+
+// export default Reports;
+
+// // Styled components
+// const ReportsContainer = styled.div`
+//   min-height: 100vh;
+//   padding: 2rem;
+//   background-color: #F5F5F5;
+// `;
+
+// const ReportsCard = styled.div`
+//   max-width: 1000px;
+//   margin: 0 auto;
+//   background: white;
+//   border-radius: 12px;
+//   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+//   overflow: hidden;
+// `;
+
+// const ReportsHeader = styled.div`
+//   padding: 1.5rem 2rem;
+//   background: linear-gradient(135deg, #C62828, #EF5350);
+//   color: white;
+// `;
+
+// const ReportsTitle = styled.h2`
+//   font-size: 1.5rem;
+//   font-weight: 600;
+//   margin-bottom: 0.25rem;
+// `;
+
+// const ReportsSubtitle = styled.p`
+//   font-size: 0.9rem;
+//   opacity: 0.9;
+// `;
+
+// const ReportsContent = styled.div`
+//   padding: 2rem;
+// `;
+
+// const FilterRow = styled.div`
+//   display: grid;
+//   grid-template-columns: 1fr 1fr;
+//   gap: 1.5rem;
+//   margin-bottom: 1.5rem;
+  
+//   @media (max-width: 768px) {
+//     grid-template-columns: 1fr;
+//   }
+// `;
+
+// const FilterGroup = styled.div`
+//   margin-bottom: 0;
+// `;
+
+// const FilterLabel = styled.label`
+//   display: block;
+//   font-size: 0.9rem;
+//   font-weight: 500;
+//   color: #555;
+//   margin-bottom: 0.5rem;
+// `;
+
+// const StyledSelect = styled(Select)`
+//   .react-select__control {
+//     min-height: 48px;
+//     border: 1px solid #ddd;
+//     &:hover {
+//       border-color: #C62828;
+//     }
+//   }
+  
+//   .react-select__control--is-focused {
+//     border-color: #C62828;
+//     box-shadow: 0 0 0 1px #C62828;
+//   }
+// `;
+
+// const selectStyles = {
+//   control: (provided) => ({
+//     ...provided,
+//     minHeight: '48px',
+//     border: '1px solid #ddd',
+//     '&:hover': {
+//       borderColor: '#C62828',
+//     },
+//   }),
+//   option: (provided, state) => ({
+//     ...provided,
+//     backgroundColor: state.isSelected ? '#C62828' : state.isFocused ? '#FFEBEE' : 'white',
+//     color: state.isSelected ? 'white' : '#333',
+//   }),
+//   multiValue: (provided) => ({
+//     ...provided,
+//     backgroundColor: '#FFEBEE',
+//   }),
+//   multiValueLabel: (provided) => ({
+//     ...provided,
+//     color: '#C62828',
+//   }),
+// };
+
+// const DateRangeGroup = styled.div`
+//   display: grid;
+//   grid-template-columns: 1fr 1fr;
+//   gap: 1.5rem;
+//   margin-bottom: 1.5rem;
+  
+//   @media (max-width: 768px) {
+//     grid-template-columns: 1fr;
+//   }
+// `;
+
+// const DateInputGroup = styled.div`
+//   display: flex;
+//   flex-direction: column;
+// `;
+
+// const StyledDateInput = styled.input`
+//   width: 100%;
+//   padding: 0.75rem 1rem;
+//   font-size: 1rem;
+//   border: 1px solid #ddd;
+//   border-radius: 6px;
+//   transition: all 0.3s ease;
+  
+//   &:focus {
+//     border-color: #C62828;
+//     outline: none;
+//     box-shadow: 0 0 0 1px #C62828;
+//   }
+// `;
+
+// const GenerateButton = styled.button`
+//   width: 100%;
+//   padding: 0.75rem;
+//   font-size: 1rem;
+//   font-weight: 500;
+//   color: white;
+//   background-color: #C62828;
+//   border: none;
+//   border-radius: 6px;
+//   cursor: pointer;
+//   transition: all 0.3s ease;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   gap: 0.5rem;
+  
+//   &:hover {
+//     background-color: #EF5350;
+//   }
+  
+//   &:disabled {
+//     background-color: #B0BEC5;
+//     cursor: not-allowed;
+//   }
+// `;
+
+// const Spinner = styled.div`
+//   width: 16px;
+//   height: 16px;
+//   border: 2px solid rgba(255, 255, 255, 0.3);
+//   border-radius: 50%;
+//   border-top-color: white;
+//   animation: spin 1s ease-in-out infinite;
+  
+//   @keyframes spin {
+//     to { transform: rotate(360deg); }
+//   }
+// `;
+
+// const ErrorMessage = styled.div`
+//   color: #D32F2F;
+//   background-color: #FFEBEE;
+//   padding: 0.75rem 1rem;
+//   border-radius: 6px;
+//   font-size: 0.9rem;
+//   margin-bottom: 1.5rem;
+//   text-align: center;
+// `;
+
