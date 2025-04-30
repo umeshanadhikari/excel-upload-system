@@ -148,7 +148,7 @@ const FormLabel = styled.label`
 
 const FormInput = styled.input`
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 0.5rem;
   font-size: 1rem;
   border: 1px solid #ddd;
   border-radius: 6px;
