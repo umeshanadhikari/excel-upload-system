@@ -204,89 +204,95 @@ export const getNextExcelSheetID = (token) => {
     });
 };
 
-export const fetchDistributors = async (token) => {
-  try {
-    const response = await axios.get(`${API_URL}/files/distributors`, {
+// Fetch distributors
+export const fetchDistributors = (token) => {
+  console.log("Fetching distributors with token:", token);
+  return axios.get(`${API_URL}/files/distributors`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
       },
-    });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (err) {
-    console.error("Error fetching distributors:", err.response?.data || err.message);
-    throw err;
-  }
+  }).then((response) => {
+      console.log("Distributors response:", response.data);
+      return response.data;
+  }).catch((err) => {
+      console.error("Error fetching distributors:", err.response?.data || err.message);
+      throw err;
+  });
 };
 
-export const fetchAgencies = async (token) => {
-  try {
-    const response = await axios.get(`${API_URL}/files/agencies`, {
+export const fetchSalesReps = (token) => {
+  console.log("Fetching sales reps with token:", token);
+  return axios.get(`${API_URL}/files/sales-reps`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
       },
-    });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (err) {
-    console.error("Error fetching agencies:", err.response?.data || err.message);
-    throw err;
-  }
+  }).then((response) => {
+      console.log("Sales reps response:", response.data);
+      return response.data;
+  }).catch((err) => {
+      console.error("Error fetching sales reps:", err.response?.data || err.message);
+      throw err;
+  });
 };
 
-export const fetchProducts = async (token) => {
-  try {
-    const response = await axios.get(`${API_URL}/files/products`, {
+// Fetch agencies
+export const fetchAgencies = (token) => {
+  console.log("Fetching agencies with token:", token);
+  return axios.get(`${API_URL}/files/agencies`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
       },
-    });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (err) {
-    console.error("Error fetching products:", err.response?.data || err.message);
-    throw err;
-  }
+  }).then((response) => {
+      console.log("Agencies response:", response.data);
+      return response.data;
+  }).catch((err) => {
+      console.error("Error fetching agencies:", err.response?.data || err.message);
+      throw err;
+  });
 };
 
-export const fetchSalesReps = async (token) => {
-  try {
-    const response = await axios.get(`${API_URL}/files/sales-reps`, {
+// Fetch products
+export const fetchProducts = (token) => {
+  console.log("Fetching products with token:", token);
+  return axios.get(`${API_URL}/files/products`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
       },
-    });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (err) {
-    console.error("Error fetching sales reps:", err.response?.data || err.message);
-    throw err;
-  }
+  }).then((response) => {
+      console.log("Products response:", response.data);
+      return response.data;
+  }).catch((err) => {
+      console.error("Error fetching products:", err.response?.data || err.message);
+      throw err;
+  });
 };
 
-export const fetchCustomers = async (token) => {
-  try {
-    const response = await axios.get(`${API_URL}/files/customers`, {
+export const fetchCustomers = (token) => {
+  return axios.get(`${API_URL}/files/customers`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
       },
-    });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (err) {
-    console.error("Error fetching customers:", err.response?.data || err.message);
-    throw err;
-  }
+  }).then((response) => {
+      return response.data;
+  }).catch((err) => {
+      console.error("Error fetching customers:", err.response?.data || err.message);
+      throw err;
+  });
 };
 
-export const fetchAreas = async (token) => {
-  try {
-    const response = await axios.get(`${API_URL}/files/areas`, {
+export const fetchAreas = (token) => {
+  return axios.get(`${API_URL}/files/areas`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,
       },
-    });
-    return Array.isArray(response.data) ? response.data : [];
-  } catch (err) {
-    console.error("Error fetching areas:", err.response?.data || err.message);
-    throw err;
-  }
+  }).then((response) => {
+      return response.data;
+  }).catch((err) => {
+      console.error("Error fetching areas:", err.response?.data || err.message);
+      throw err;
+  });
 };
+
 
 // Function to remove an Excel sheet
 export const removeExcelSheet = (ExcelSheetID, token) => {

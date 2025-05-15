@@ -35,8 +35,8 @@ router.get('/distributors', authMiddleware, async (req, res) => {
     `);
     res.json(result.recordset);
   } catch (error) {
-    console.error('Error fetching distributors:', error);
-    res.status(500).json({ message: 'Error fetching distributors' });
+      console.error('Error fetching distributors:', error);
+      res.status(500).json({ message: 'Error fetching distributors' });
   }
 });
 
@@ -74,10 +74,8 @@ router.get('/sales-reps', authMiddleware, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT DISTINCT [SalesRep] as name, [ID_SalesRep] as id
-      FROM [SlaesRecords]
-      WHERE [SalesRep] IS NOT NULL
-      ORDER BY [SalesRep]
+      SELECT SalesRepID AS id, SalesRepName AS name
+      FROM Axianta_SalesReps
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -91,10 +89,8 @@ router.get('/customers', authMiddleware, async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
-      SELECT DISTINCT [Customer] as name, [ID_Customer] as id
-      FROM [SlaesRecords]
-      WHERE [Customer] IS NOT NULL
-      ORDER BY [Customer]
+     SELECT CustomerID AS id, CustomerName AS name
+      FROM Axianta_Customers
     `);
     res.json(result.recordset);
   } catch (err) {
@@ -120,310 +116,233 @@ router.get('/areas', authMiddleware, async (req, res) => {
   }
 });
 
-// router.post('/generate-report', authMiddleware, async (req, res) => {
-//   try {
-//     const { distributor, agency, product, salesRep, customer, area, fromDate, toDate } = req.body;
-//     const pool = await poolPromise;
-
-//     // Fetch months
-//     const monthsResult = await pool.request().query(
-//       `SELECT [MonthID], [MonthName] FROM [Months] ORDER BY [MonthID]`
-//     );
-//     const months = monthsResult.recordset;
-
-//     // Process filter strings
-//     const products = product ? product.split(',').map(p => p.trim()).filter(p => p) : [];
-//     const agencies = agency ? agency.split(',').map(a => a.trim()).filter(a => a) : [];
-//     const customers = customer ? customer.split(',').map(c => c.trim()).filter(c => c) : [];
-//     const areas = area ? area.split(',').map(a => a.trim()).filter(a => a) : [];
-
-//     // Build query with proper parameterization
-//     let query = `
-//       SELECT
-//         Distributor,
-//         ${salesRep ? 'SalesRep,' : ''}
-//         Agency,
-//         Product,
-//         Customer,
-//         Area,
-//         YEAR(Date) AS Year,
-//         MONTH(Date) AS Month,
-//         SUM(NetValue) AS NetValue,
-//         SUM(Cs) AS Quantity
-//       FROM SlaesRecords
-//       WHERE 1=1
-//     `;
-
-//     // Add filters with proper parameter handling
-//     if (distributor) query += " AND Distributor IN (SELECT value FROM STRING_SPLIT(@Distributor, ','))";
-//     if (agencies.length > 0) query += " AND Agency IN (SELECT value FROM STRING_SPLIT(@Agency, ','))";
-//     if (products.length > 0) query += " AND Product IN (SELECT value FROM STRING_SPLIT(@Product, ','))";
-//     if (salesRep) query += " AND SalesRep = @SalesRep";
-//     if (customers.length > 0) query += " AND Customer IN (SELECT value FROM STRING_SPLIT(@Customer, ','))";
-//     if (areas.length > 0) query += " AND Area IN (SELECT value FROM STRING_SPLIT(@Area, ','))";
-//     if (fromDate) query += " AND Date >= @FromDate";
-//     if (toDate) query += " AND Date <= @ToDate";
-
-//     query += `
-//       GROUP BY Distributor, ${salesRep ? 'SalesRep,' : ''} Agency, Product, Customer, Area, YEAR(Date), MONTH(Date)
-//       ORDER BY Distributor, ${salesRep ? 'SalesRep,' : ''} Agency, Product, Customer, Area, YEAR(Date), MONTH(Date)
-//     `;
-
-//     // Execute query with proper parameters
-//     const request = pool.request();
-//     if (distributor) request.input("Distributor", distributor);
-//     if (agencies.length > 0) request.input("Agency", agency);
-//     if (products.length > 0) request.input("Product", product);
-//     if (salesRep) request.input("SalesRep", salesRep);
-//     if (customers.length > 0) request.input("Customer", customer);
-//     if (areas.length > 0) request.input("Area", area);
-//     if (fromDate) request.input("FromDate", fromDate);
-//     if (toDate) request.input("ToDate", toDate);
-
-//     const result = await request.query(query);
-//     const records = result.recordset;
-
-//     // Generate date range
-//     let allMonths = [];
-//     if (fromDate && toDate) {
-//       const startDate = new Date(fromDate);
-//       const endDate = new Date(toDate);
-//       let currentDate = new Date(startDate);
-//       while (currentDate <= endDate) {
-//         const year = currentDate.getFullYear();
-//         const month = currentDate.getMonth() + 1;
-//         allMonths.push(`${year}-${month}`);
-//         currentDate.setMonth(currentDate.getMonth() + 1);
-//       }
-//     }
-
-//     // Transform data with proper filtering
-//     const transformedData = [];
-//     records.forEach(record => {
-//       const monthlyKey = `${record.Year}-${record.Month}`;
-//       let entry = transformedData.find(item =>
-//         item.distributor === record.Distributor &&
-//         item.salesRep === record.SalesRep &&
-//         item.agency === record.Agency &&
-//         item.product === record.Product &&
-//         item.customer === record.Customer &&
-//         item.area === record.Area
-//       );
-
-//       if (!entry) {
-//         entry = {
-//           distributor: record.Distributor,
-//           salesRep: record.SalesRep,
-//           agency: record.Agency,
-//           product: record.Product,
-//           customer: record.Customer,
-//           area: record.Area,
-//           monthlyData: {},
-//           monthlyQuantities: {},
-//           totalAmount: 0,
-//           totalQuantity: 0
-//         };
-//         transformedData.push(entry);
-//       }
-
-//       entry.monthlyData[monthlyKey] = record.NetValue;
-//       entry.monthlyQuantities[monthlyKey] = record.Quantity || 0;
-//       entry.totalAmount += record.NetValue;
-//       entry.totalQuantity += record.Quantity || 0;
-//     });
-
-//     // Ensure all months are represented
-//     allMonths.forEach(monthKey => {
-//       transformedData.forEach(entry => {
-//         if (!entry.monthlyData[monthKey]) {
-//           entry.monthlyData[monthKey] = 0;
-//           entry.monthlyQuantities[monthKey] = 0;
-//         }
-//       });
-//     });
-
-//     // Generate PDF
-//     const filterData = {
-//       distributor: distributor || "",
-//       salesRep: salesRep || "",
-//       agency: agencies, // Pass as array instead of string
-//       product: products, // Pass as array instead of string
-//       customer: customer || "",
-//       area: area || "",
-//       fromDate: fromDate || "",
-//       toDate: toDate || "",
-//     };
-
-//     const outputPath = path.join(__dirname, `../reports/Distributor_Agency_Product_Report_${Date.now()}.pdf`);
-
-//     if (transformedData.length === 0) {
-//       return res.status(404).json({ message: "No data found for the given filters" });
-//     }
-
-//     await generateReport(transformedData, filterData, outputPath, months);
-
-//     res.download(outputPath, (err) => {
-//       if (err) console.error("Error sending file:", err);
-//       fs.unlinkSync(outputPath);
-//     });
-//   } catch (err) {
-//     console.error("Error generating report:", err);
-//     res.status(500).json({ message: "Error generating report", error: err.message });
-//   }
-// });
-
 
 
 router.post('/generate-report', authMiddleware, async (req, res) => {
-  console.log("Generate report route hit");
+  console.log("Generate report route hit with body:", req.body);
+  
   try {
-    const { distributor, agency, product, salesRep, customer, area, fromDate, toDate } = req.body;
-    const pool = await poolPromise;
+      const { distributor, agency, product, salesRep, customer, area, fromDate, toDate } = req.body;
 
-    // Fetch months
-    const monthsResult = await pool.request().query(`
-      SELECT [MonthID], [MonthName] FROM [Months] ORDER BY [MonthID]
-    `);
-    const months = monthsResult.recordset;
+      console.log("Received payload:", {
+        distributor,
+        agency,
+        product,
+        salesRep,
+        customer,
+        area,
+        fromDate,
+        toDate,
+    });
 
-    const products = product ? product.split(";").map(p => p.trim()).filter(p => p) : [];
-    const agencies = agency ? agency.split(";").map(a => a.trim()).filter(a => a) : [];
-    const customers = customer ? customer.split(";").map(c => c.trim()).filter(c => c) : [];
-    const areas = area ? area.split(";").map(a => a.trim()).filter(a => a) : [];
-    
-    // Build query
-    let query = `
-      SELECT
-        Distributor,
-        SalesRep,
-        Agency,
-        Product,
-        Customer,
-        Area,
-        YEAR(Date) AS Year,
-        MONTH(Date) AS Month,
-        SUM(NetValue) AS NetValue,
-        SUM(Cs) AS Quantity
-      FROM SlaesRecords
-      WHERE 1=1
-    `;
+      console.log("Validating input parameters...");
+      if (!fromDate || !toDate) {
+          console.error("Missing date parameters");
+          return res.status(400).json({ message: "Both fromDate and toDate are required" });
+      }
 
-    // Add filters
-    if (distributor) query += " AND Distributor IN (SELECT value FROM STRING_SPLIT(@Distributor, ';'))";
-    if (agencies.length > 0) query += " AND Agency IN (SELECT value FROM STRING_SPLIT(@Agency, ';'))";
-    if (products.length > 0) query += " AND Product IN (SELECT value FROM STRING_SPLIT(@Product, ';'))";
-    if (salesRep) query += " AND SalesRep = @SalesRep";
-    if (customers.length > 0) query += " AND Customer IN (SELECT value FROM STRING_SPLIT(@Customer, ';'))";
-    if (areas.length > 0) query += " AND Area IN (SELECT value FROM STRING_SPLIT(@Area, ';'))";
-    if (fromDate) query += " AND Date >= @FromDate";
-    if (toDate) query += " AND Date <= @ToDate";
+      const pool = await poolPromise;
+      console.log("Database connection established");
 
-    query += `
-      GROUP BY Distributor, SalesRep, Agency, Product, Customer, Area, YEAR(Date), MONTH(Date)
-      ORDER BY Distributor, SalesRep, Agency, Product, Customer, Area, YEAR(Date), MONTH(Date)
-    `;
+      // Fetch months
+      const monthsResult = await pool.request().query(`
+          SELECT [MonthID], [MonthName] FROM [Months] ORDER BY [MonthID]
+      `);
+      const months = monthsResult.recordset;
 
-    // Execute query
-    const request = pool.request();
+      const products = product
+    ? product.split(";").map(p => p.trim().toUpperCase()).filter(p => p)
+    : [];
+const agencies = agency
+    ? agency.split(";").map(a => a.trim().toUpperCase()).filter(a => a)
+    : [];
+const distributorNormalized = distributor ? distributor.trim().toUpperCase() : null;
+      const customers = customer ? customer.split(";").map(c => c.trim()).filter(c => c) : [];
+      const areas = area ? area.split(";").map(r => r.trim()).filter(r => r) : [];
+
+      console.log("Building SQL query with filters:", {
+        distributor,
+        agencies,
+        products,
+        salesRep,
+        customers,
+        areas,
+        fromDate,
+        toDate
+    });
+
+      // Build query
+      let query = `
+          SELECT
+              Distributor,
+              SalesRep,
+              Agency,
+              Product,
+              Customer,
+              Area,
+              YEAR(Date) AS Year,
+              MONTH(Date) AS Month,
+              SUM(NetValue) AS NetValue,
+              SUM(Cs) AS Quantity
+          FROM SlaesRecords
+          WHERE 1=1
+      `;
+
+      // Add filters
+      if (distributor) {
+        query += " AND Distributor IN (SELECT value FROM STRING_SPLIT(@Distributor, ';'))";
+      }
+      if (agency) {
+        query += " AND Agency IN (SELECT value FROM STRING_SPLIT(@Agency, ';'))";
+      }
+      if (product) {
+        query += " AND Product IN (SELECT value FROM STRING_SPLIT(@Product, ';'))";
+      }
+      if (salesRep) {
+        query += " AND SalesRep IN (SELECT value FROM STRING_SPLIT(@SalesRep, ';'))";
+      }
+      if (customer) {
+        query += " AND Customer IN (SELECT value FROM STRING_SPLIT(@Customer, ';'))";
+      }
+      if (area) {
+        query += " AND Area IN (SELECT value FROM STRING_SPLIT(@Area, ';'))";
+      }
+      if (fromDate) {
+        query += " AND Date >= @FromDate";
+      }
+      if (toDate) {
+        query += " AND Date <= @ToDate";
+      }
+  
+
+      query += `
+          GROUP BY Distributor, SalesRep, Agency, Product, Customer, Area, YEAR(Date), MONTH(Date)
+          ORDER BY Distributor, SalesRep, Agency, Product, Customer, Area, YEAR(Date), MONTH(Date)
+      `;
+
+      console.log("Final SQL query:", query);
+      console.log("Query Parameters:", {
+        Distributor: distributor,
+        Agency: agency,
+        Product: product,
+        FromDate: fromDate,
+        ToDate: toDate,
+    });
+
+      // Execute query
+      const request = pool.request();
     if (distributor) request.input("Distributor", sql.NVarChar, distributor);
-    if (agencies.length > 0) request.input("Agency", sql.NVarChar, agency);
-    if (products.length > 0) request.input("Product", sql.NVarChar, product);
+    if (agency) request.input("Agency", sql.NVarChar, agency);
+    if (product) request.input("Product", sql.NVarChar, product);
     if (salesRep) request.input("SalesRep", sql.NVarChar, salesRep);
-    if (customers.length > 0) request.input("Customer", sql.NVarChar, customer);
-    if (areas.length > 0) request.input("Area", sql.NVarChar, area);
+    if (customer) request.input("Customer", sql.NVarChar, customer);
+    if (area) request.input("Area", sql.NVarChar, area);
     if (fromDate) request.input("FromDate", sql.Date, fromDate);
     if (toDate) request.input("ToDate", sql.Date, toDate);
 
-    const result = await request.query(query);
-    const records = result.recordset;
 
-    // Generate date range
-    let allMonths = [];
-    if (fromDate && toDate) {
-      const startDate = new Date(fromDate);
-      const endDate = new Date(toDate);
-      let currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        allMonths.push(`${year}-${month}`);
-        currentDate.setMonth(currentDate.getMonth() + 1);
-      }
+      console.log("Executing database query...");
+
+      const result = await request.query(query);
+      const records = result.recordset;
+      console.log(`Query returned ${records.length} records`);
+
+      if (records.length === 0) {
+        console.log("No records found for the given filters");
+        return res.status(404).json({ message: "No data found for the given filters" });
     }
 
-    // Transform data
-    const transformedData = [];
-    records.forEach(record => {
-      const monthlyKey = `${record.Year}-${record.Month}`;
-      let entry = transformedData.find(item =>
-        item.distributor === record.Distributor &&
-        item.salesRep === record.SalesRep &&
-        item.agency === record.Agency &&
-        item.product === record.Product &&
-        item.customer === record.Customer &&
-        item.area === record.Area
-      );
-
-      if (!entry) {
-        entry = {
-          distributor: record.Distributor,
-          salesRep: record.SalesRep,
-          agency: record.Agency,
-          product: record.Product,
-          customer: record.Customer,
-          area: record.Area,
-          monthlyData: {},
-          monthlyQuantities: {},
-          totalAmount: 0,
-          totalQuantity: 0
-        };
-        transformedData.push(entry);
+      // Generate date range
+      let allMonths = [];
+      if (fromDate && toDate) {
+          const startDate = new Date(fromDate);
+          const endDate = new Date(toDate);
+          let currentDate = new Date(startDate);
+          while (currentDate <= endDate) {
+              const year = currentDate.getFullYear();
+              const month = currentDate.getMonth() + 1;
+              allMonths.push(`${year}-${month}`);
+              currentDate.setMonth(currentDate.getMonth() + 1);
+          }
       }
 
-      entry.monthlyData[monthlyKey] = record.NetValue;
-      entry.monthlyQuantities[monthlyKey] = record.Quantity || 0;
-      entry.totalAmount += record.NetValue;
-      entry.totalQuantity += record.Quantity || 0;
-    });
+      // Transform data
+      const transformedData = [];
+      records.forEach(record => {
+          const monthlyKey = `${record.Year}-${record.Month}`;
+          let entry = transformedData.find(item =>
+              item.distributor === record.Distributor &&
+              item.salesRep === record.SalesRep &&
+              item.agency === record.Agency &&
+              item.product === record.Product &&
+              item.customer === record.Customer &&
+              item.area === record.Area
+          );
 
-    // Ensure all months are represented
-    allMonths.forEach(monthKey => {
-      transformedData.forEach(entry => {
-        if (!entry.monthlyData[monthKey]) {
-          entry.monthlyData[monthKey] = 0;
-          entry.monthlyQuantities[monthKey] = 0;
-        }
+          if (!entry) {
+              entry = {
+                  distributor: record.Distributor,
+                  salesRep: record.SalesRep,
+                  agency: record.Agency,
+                  product: record.Product,
+                  customer: record.Customer,
+                  area: record.Area,
+                  monthlyData: {},
+                  monthlyQuantities: {},
+                  totalAmount: 0,
+                  totalQuantity: 0
+              };
+              transformedData.push(entry);
+          }
+
+          entry.monthlyData[monthlyKey] = record.NetValue;
+          entry.monthlyQuantities[monthlyKey] = record.Quantity || 0;
+          entry.totalAmount += record.NetValue;
+          entry.totalQuantity += record.Quantity || 0;
       });
-    });
 
-    // Generate PDF
-    const filters = {
-      distributor: distributor || "",
-      salesRep: salesRep || "",
-      agency: agency || "",
-      product: product || "",
-      customer: customer || "",
-      area: area || "",
-      fromDate: fromDate || "",
-      toDate: toDate || "",
-    };
+      // Ensure all months are represented
+      allMonths.forEach(monthKey => {
+          transformedData.forEach(entry => {
+              if (!entry.monthlyData[monthKey]) {
+                  entry.monthlyData[monthKey] = 0;
+                  entry.monthlyQuantities[monthKey] = 0;
+              }
+          });
+      });
 
-    const outputPath = path.join(__dirname, '../reports/Distributor_Agency_Product_Report_' + Date.now() + '.pdf');
+      // Generate PDF
+      const filters = {
+          distributor: distributor || "",
+          salesRep: salesRep || "",
+          agency: agency || "",
+          product: product || "",
+          customer: customer || "",
+          area: area || "",
+          fromDate: fromDate || "",
+          toDate: toDate || "",
+      };
 
-    if (transformedData.length === 0) {
-      return res.status(404).json({ message: "No data found for the given filters" });
-    }
+      const outputPath = path.join(__dirname, '../reports/Distributor_Agency_Product_Report_' + Date.now() + '.pdf');
+      console.log(`Generating PDF at ${outputPath}`);
 
-    await generateReport(transformedData, filters, outputPath, months);
-    res.download(outputPath, (err) => {
-      if (err) console.error("Error sending file:", err);
-      fs.unlinkSync(outputPath);
-    });
+
+      if (transformedData.length === 0) {
+          return res.status(404).json({ message: "No data found for the given filters" });
+      }
+
+      await generateReport(transformedData, filters, outputPath, months);
+      console.log("PDF generation completed");
+      res.download(outputPath, (err) => {
+          if (err) console.error("Error sending file:", err);
+          fs.unlinkSync(outputPath);
+      });
   } catch (err) {
-    console.error("Error generating report:", err);
-    res.status(500).json({ message: "Error generating report", error: err.message });
+      console.error("Error generating report:", err);
+      res.status(500).json({ message: "Error generating report", error: err.message });
   }
 });
+
 
 // Route to fetch the next ExcelSheetID
 router.get('/next-excel-sheet-id', authMiddleware, async (req, res) => {

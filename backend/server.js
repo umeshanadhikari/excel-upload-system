@@ -29,7 +29,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const removeRoutes = require('./routes/removeRoutes');
-const salesRepRoutes = require('./routes/salesRepRoutes'); // Add this line
+// const salesRepRoutes = require('./routes/salesRepRoutes'); // Add this line
 const app = express();
 require('dotenv').config();
 
@@ -49,7 +49,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/remove', removeRoutes);
-app.use('/api', salesRepRoutes); // Add this line for sales reps
+// app.use('/api', salesRepRoutes); // Add this line for sales reps
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
